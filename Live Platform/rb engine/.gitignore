@@ -1,0 +1,16 @@
+# Python virtual environment
+.venv/
+venv/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local output files
+*.jsonl
+inferred_mappings.yml
+
+# OS junk
+.DS_Store
+Thumbs.db

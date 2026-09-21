@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>IED Monitor</title>
+    <style>
+      :root {
+        --bg: #101417;
+        --panel: #171d21;
+        --panel-2: #1f272c;
+        --line: #334047;
+        --text: #edf3f5;
+        --muted: #9fb0b8;
+        --blue: #5fb3d9;
+        --green: #78c28c;
+        --amber: #e3b85b;
+        --red: #e57474;
+      }
+
+      * { box-sizing: border-box; }
+      body { margin: 0; font-family: Arial, sans-serif; background: var(--bg); color: var(--text); }
+      header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 16px;
+        padding: 18px 24px;
+        border-bottom: 1px solid var(--line);
+        background: #141a1e;
+      }
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: 22px; }
+      h2 { font-size: 15px; color: var(--muted); margin-bottom: 12px; }
+      a, button {
+        color: var(--text);
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        padding: 8px 11px;
+        border-radius: 6px;
+        text-decoration: none;
+        cursor: pointer;
+      }
+      main { padding: 16px; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+      .metric, .panel, .ied {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px;
+      }
+      .metric strong { display: block; font-size: 26px; margin-bottom: 5px; }
+      .metric span, .muted { color: var(--muted); font-size: 13px; }
+      .ied-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+        gap: 12px;
+      }
+      .ied h3 { display: flex; justify-content: space-between; gap: 10px; font-size: 16px; margin-bottom: 10px; }
+      .pill {
+        display: inline-block;
+        padding: 3px 7px;
+        border-radius: 999px;
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        font-size: 12px;
+      }
+      .online { color: var(--green); }
+      .suspicious { color: var(--red); }
+      .not-observed { color: var(--amber); }
+      table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+      th, td { border-bottom: 1px solid var(--line); padding: 7px 4px; text-align: left; }
+      th { color: var(--muted); font-weight: 600; }
+      .row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 5px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 13px;
+      }
+      .row:last-child { border-bottom: 0; }
+      @media (max-width: 900px) {
+        header { align-items: flex-start; flex-direction: column; }
+        .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 560px) {
+        .grid { grid-template-columns: 1fr; }
+        .ied-grid { grid-template-columns: 1fr; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <h1>IED Monitor</h1>
+        <p class="muted">Values update from PCAP replay or live captured packets.</p>
+      </div>
+      <div>
+        <a href="/">Forensic Dashboard</a>
+        <button onclick="refresh()">Refresh</button>
+      </div>
+    </header>
+
+    <main>
+      <div class="grid">
+        <div class="metric"><strong id="deviceCount">0</strong><span>Configured IEDs</span></div>
+        <div class="metric"><strong id="onlineCount">0</strong><span>Observed</span></div>
+        <div class="metric"><strong id="suspiciousCount">0</strong><span>Suspicious</span></div>
+        <div class="metric"><strong id="duration">0s</strong><span>Replay timespan</span></div>
+      </div>
+
+      <div class="panel" style="margin-bottom: 16px;">
+        <h2>Replay Timeline</h2>
+        <div id="timeline" class="muted">No replay parsed yet.</div>
+      </div>
+
+      <section class="ied-grid" id="iedGrid"></section>
+    </main>
+
+    <script>
+      const apiBase = '/api';
+
+      function fmt(value, suffix = '') {
+        if (value === null || value === undefined || Number.isNaN(value)) return 'Waiting for SV';
+        if (typeof value === 'number') return `${Number(value.toFixed(3))}${suffix}`;
+        return `${value}${suffix}`;
+      }
+
+      function healthClass(value) {
+        return String(value || 'not observed').replace(/\s+/g, '-');
+      }
+
+      async function refresh() {
+        const res = await fetch(`${apiBase}/ied-monitor`);
+        const data = await res.json();
+        const devices = data.devices || [];
+        const observed = devices.filter(device => device.health !== 'not observed').length;
+        const suspicious = devices.filter(device => device.health === 'suspicious').length;
+        const duration = data.timeline?.capture_duration_seconds;
+
+        document.getElementById('deviceCount').textContent = devices.length;
+        document.getElementById('onlineCount').textContent = observed;
+        document.getElementById('suspiciousCount').textContent = suspicious;
+        document.getElementById('duration').textContent = duration ? `${Number(duration.toFixed(2))}s` : '0s';
+        document.getElementById('timeline').innerHTML = data.timeline?.last_replay
+          ? `${data.timeline.last_replay.filename}: ${data.timeline.last_replay.packets_processed} GOOSE/SV packets, ${fmt(duration, 's')} capture duration`
+          : 'No replay parsed yet. During live capture this page refreshes continuously as packets arrive.';
+
+        document.getElementById('iedGrid').innerHTML = devices.map(renderDevice).join('');
+      }
+
+      function renderDevice(device) {
+        const voltage = device.measurements?.voltage || {};
+        const current = device.measurements?.current || {};
+        const offset = device.last_capture_offset_seconds;
+        return `
+          <article class="ied">
+            <h3>${device.bus}<span class="pill ${healthClass(device.health)}">${device.health}</span></h3>
+            <div class="row"><span>Breaker</span><strong>${device.breaker_status || 'not observed'}</strong></div>
+            <div class="row"><span>GOOSE Expected MAC</span><span>${device.goose_expected_mac || device.expected_mac || 'N/A'}</span></div>
+            <div class="row"><span>GOOSE Source MAC</span><span>${device.goose_source_mac || device.src_mac || 'N/A'}</span></div>
+            <div class="row"><span>SV Expected MAC</span><span>${device.sv_expected_mac || 'N/A'}</span></div>
+            <div class="row"><span>SV Source MAC</span><span>${device.sv_source_mac || device.src_mac || 'N/A'}</span></div>
+            <div class="row"><span>Last seen</span><span>${offset === null || offset === undefined ? 'Waiting for packets' : `+${fmt(offset, 's')}`}</span></div>
+            <div class="row"><span>Packets / Alerts</span><span>${device.packet_count || 0} / ${device.alert_count || 0}</span></div>
+            <table>
+              <thead><tr><th>Phase</th><th>Voltage</th><th>Current</th></tr></thead>
+              <tbody>
+                <tr><td>A</td><td>${fmt(voltage.phaseA)}</td><td>${fmt(current.phaseA)}</td></tr>
+                <tr><td>B</td><td>${fmt(voltage.phaseB)}</td><td>${fmt(current.phaseB)}</td></tr>
+                <tr><td>C</td><td>${fmt(voltage.phaseC)}</td><td>${fmt(current.phaseC)}</td></tr>
+              </tbody>
+            </table>
+            <div class="row"><span>GOOSE</span><span>${device.gocbRef || (device.gocb_refs || [])[0] || 'N/A'}</span></div>
+            <div class="row"><span>SV</span><span>${device.svID || (device.sv_ids || [])[0] || 'N/A'}</span></div>
+          </article>
+        `;
+      }
+
+      setInterval(refresh, 3000);
+      refresh();
+    </script>
+  </body>
+</html>

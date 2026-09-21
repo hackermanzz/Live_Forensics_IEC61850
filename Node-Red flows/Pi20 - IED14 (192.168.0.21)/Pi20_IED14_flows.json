@@ -1,0 +1,174 @@
+[
+    {
+        "id": "14eb7d011d2de889",
+        "type": "tab",
+        "label": "IED to Scada",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "90e79eb956b7309f",
+        "type": "debug",
+        "z": "14eb7d011d2de889",
+        "name": "",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 1390,
+        "y": 540,
+        "wires": []
+    },
+    {
+        "id": "dbf142f0dec547a5",
+        "type": "comment",
+        "z": "14eb7d011d2de889",
+        "name": "Sending all Values to SCADA for Monitoring",
+        "info": "",
+        "x": 630,
+        "y": 480,
+        "wires": []
+    },
+    {
+        "id": "3e460b95078abea6",
+        "type": "function",
+        "z": "14eb7d011d2de889",
+        "name": "",
+        "func": "msg.payload = { \n    value: msg.payload, \n    'fc': 16, \n    'unitid': 10, \n    'address':245 , \n    'quantity': msg.payload.length \n    \n}; \nreturn msg;\n",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1000,
+        "y": 540,
+        "wires": [
+            [
+                "351bd7396cf64913"
+            ]
+        ]
+    },
+    {
+        "id": "dc725c29122f0eed",
+        "type": "inject",
+        "z": "14eb7d011d2de889",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "1",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 450,
+        "y": 540,
+        "wires": [
+            [
+                "6b70bb3a63cca9cb"
+            ]
+        ]
+    },
+    {
+        "id": "6b70bb3a63cca9cb",
+        "type": "function",
+        "z": "14eb7d011d2de889",
+        "name": "Combine Values into Array",
+        "func": "function floatToRegisters(float) {\n    var buffer = new ArrayBuffer(4);\n    var view = new DataView(buffer);\n    view.setFloat32(0, float, false); // false for big-endian\n    return [view.getUint16(0, false), view.getUint16(2, false)];\n}\n\nvar obtainV = global.get('voltage1');\nvar obtainV2 = global.get(\"voltage2\");\nvar obtainV3 = global.get(\"voltage3\");\nvar obtainI = global.get(\"current1\");\nvar obtainI2 = global.get(\"current2\");\nvar obtainI3 = global.get(\"current3\");\n\nconst modbus = [\n    ...floatToRegisters(obtainV),\n    ...floatToRegisters(obtainV2),\n    ...floatToRegisters(obtainV3),\n    ...floatToRegisters(obtainI),\n    ...floatToRegisters(obtainI2),\n    ...floatToRegisters(obtainI3)\n];\n\nmsg.payload = modbus;\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 660,
+        "y": 540,
+        "wires": [
+            [
+                "250f734e3e0cc34f",
+                "3e460b95078abea6"
+            ]
+        ]
+    },
+    {
+        "id": "250f734e3e0cc34f",
+        "type": "debug",
+        "z": "14eb7d011d2de889",
+        "name": "debug 1",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": false,
+        "complete": "false",
+        "statusVal": "",
+        "statusType": "auto",
+        "x": 900,
+        "y": 700,
+        "wires": []
+    },
+    {
+        "id": "351bd7396cf64913",
+        "type": "modbus-flex-write",
+        "z": "14eb7d011d2de889",
+        "name": "",
+        "showStatusActivities": false,
+        "showErrors": true,
+        "showWarnings": true,
+        "server": "d4600d29b09730e6",
+        "emptyMsgOnFail": false,
+        "keepMsgProperties": false,
+        "delayOnStart": false,
+        "startDelayTime": "",
+        "x": 1190,
+        "y": 540,
+        "wires": [
+            [
+                "90e79eb956b7309f"
+            ],
+            []
+        ]
+    },
+    {
+        "id": "d4600d29b09730e6",
+        "type": "modbus-client",
+        "name": "PyModbus Server",
+        "clienttype": "tcp",
+        "bufferCommands": true,
+        "stateLogEnabled": false,
+        "queueLogEnabled": false,
+        "failureLogEnabled": false,
+        "tcpHost": "192.168.0.25",
+        "tcpPort": "10502",
+        "tcpType": "DEFAULT",
+        "serialPort": "/dev/ttyUSB",
+        "serialType": "RTU-BUFFERD",
+        "serialBaudrate": "9600",
+        "serialDatabits": "8",
+        "serialStopbits": "1",
+        "serialParity": "none",
+        "serialConnectionDelay": "100",
+        "serialAsciiResponseStartDelimiter": "0x3A",
+        "unit_id": "1",
+        "commandDelay": "1",
+        "clientTimeout": "1000",
+        "reconnectOnTimeout": true,
+        "reconnectTimeout": "2000",
+        "parallelUnitIdsAllowed": true,
+        "showErrors": false,
+        "showWarnings": true,
+        "showLogs": true
+    }
+]

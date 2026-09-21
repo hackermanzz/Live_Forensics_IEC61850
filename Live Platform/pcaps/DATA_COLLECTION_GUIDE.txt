@@ -1,0 +1,539 @@
+════════════════════════════════════════════════════════════════
+IEC 61850 ATTACK DETECTION — DATA COLLECTION GUIDE
+════════════════════════════════════════════════════════════════
+
+WHY WE ARE DOING THIS
+──────────────────────────────────────────────────────────────
+The ML models trained so far scored well on the training pcap
+but dropped to 47–66% recall on separate test pcaps. This
+happened because all training attacks used the same parameters
+— same stNum, same timing, same rate. The model memorised one
+specific attack style instead of learning general attack
+behaviour.
+
+To fix this we need multiple capture sessions where each one
+uses different attack parameters. Trained on all of them
+combined, the model learns the underlying behaviour pattern
+rather than one specific instance of it.
+
+
+WHY THE 2-MINUTE BUFFER IS NOT OPTIONAL
+──────────────────────────────────────────────────────────────
+The evaluation script measures two things: how many attack
+frames were caught (recall) AND how many clean frames were
+wrongly flagged (false positives). If you start Wireshark at
+the same time as the attack, every frame in the capture is
+inside the attack window. The evaluator sees Legitimate
+support=0 and cannot measure false positives at all.
+
+If this happens, the test result is only half an evaluation
+and cannot be trusted. You must have clean traffic before
+AND after the attack window in every pcap — especially test
+pcaps.
+
+CONSEQUENCE: If you forget the buffer, re-capture the session.
+The evaluation is meaningless without it.
+
+
+WHY GOOSE AND SV MUST BE IN THE SAME FILE
+──────────────────────────────────────────────────────────────
+The pipeline labels traffic at the GOOSE frame level. The SV
+frames are correlated back to the nearest GOOSE frame — this
+is how the Correlation_Mismatch feature works (comparing the
+GOOSE boolean command to the actual SV voltage/current).
+
+If GOOSE says "breaker tripped" but SV shows voltage is fine,
+that contradiction is the Correlation_Mismatch signal. For
+this to work, both attacks must be running simultaneously in
+the same capture.
+
+Do NOT capture SV-only sessions. Always run SV attack and
+GOOSE attack at the same time in the same window.
+
+
+WHY THE ASDU NUMBER MUST MATCH THE gocbRef BUS NUMBER
+──────────────────────────────────────────────────────────────
+The GOOSE attack targets a specific control block:
+    simpleIOGenericIO/LLN0$GO$gcbAnalogValues1  ← bus 1
+
+The SV attack must target the matching SV stream:
+    svID: svpub_values_bus1  ← also bus 1 (ASDU = 1)
+
+If the ASDU number does not match the last digit of the
+gocbRef, the Correlation_Mismatch feature cannot link them
+and the SV signal will not register correctly. Always use
+ASDU 1 when gocbRef ends in 1.
+
+
+════════════════════════════════════════════════════════════════
+BEFORE YOU START — ONE-TIME SETUP
+════════════════════════════════════════════════════════════════
+
+STEP 1 — Find your network parameters from Wireshark
+─────────────────────────────────────────────────────
+The new gooseAttack asks for APPID, confRev, VLAN ID, and
+VLAN priority. These must match the legitimate GOOSE traffic
+on your network — if they don't match, the injected frames
+will look obviously different from real traffic.
+
+Do this once before your first session:
+
+  1. Start Wireshark on the SPAN port interface
+  2. Let it capture for 30 seconds
+  3. Filter by:  goose
+  4. Click any legitimate GOOSE frame
+  5. Expand the GOOSE layer and note down:
+       APPID:          (e.g. 1000)
+       confRev:        (e.g. 1)
+       VLAN ID:        (e.g. 0)
+       VLAN priority:  (e.g. 4)
+
+Write these values here and use them for every session:
+    APPID:          1000
+    confRev:        1
+    VLAN ID:        0
+    VLAN priority:  0
+
+NOTE: The simulation flag is already disabled in the latest
+gooseAttack.c (GoosePublisher_setSimulation(publisher, 0) is
+in the code). No code changes are needed before compiling.
+
+STEP 2 — Compile both tools on the Raspberry Pi
+─────────────────────────────────────────────────
+    gcc gooseAttack.c -o gooseAttack -liec61850 -lpthread
+    gcc svAttack.c    -o svAttack    -liec61850 -lpthread
+
+Confirm no errors before proceeding.
+
+STEP 3 — Prepare your timestamps log file
+──────────────────────────────────────────
+Create pcaps/timestamps.csv with this header line exactly:
+
+    filename,attack_start,attack_end,attack_type,notes
+
+You will add one row per attack session immediately after
+stopping the capture. Format: YYYY-MM-DD HH:MM:SS
+
+Do NOT wait until later to fill this in. If you forget the
+times, run find_attack_windows_v3.py as a fallback — but it
+is less accurate than manually recorded times.
+
+
+════════════════════════════════════════════════════════════════
+HOW TO RUN THE ATTACK TOOLS
+════════════════════════════════════════════════════════════════
+
+GOOSE ATTACK — command to run (as root):
+    sudo ./gooseAttack <interface>
+    Example: sudo ./gooseAttack eth0
+
+    The tool prompts for the following in order:
+    ┌──────────────────────────────────────────────────────────────┐
+    │ Prompt                                  │ What to enter      │
+    ├──────────────────────────────────────────────────────────────┤
+    │ APPID (decimal or hex):                 │ from Wireshark     │
+    │ Destination multicast MAC [default]:    │ press Enter        │
+    │ VLAN ID:                                │ from Wireshark     │
+    │ VLAN priority (0-7):                    │ from Wireshark     │
+    │ goCBRef [default]:                      │ press Enter        │
+    │ datSet reference [default]:             │ press Enter        │
+    │ confRev from real packet:               │ from Wireshark     │
+    │ Starting stNum:                         │ attack-specific    │
+    │ Starting sqNum (usually 0 or 1):        │ 1                  │
+    │ timeAllowedToLive (ms, e.g. 500):       │ 500                │
+    │ Resend interval (ms):                   │ attack-specific    │
+    │ Number of packets to send:              │ attack-specific    │
+    │ Number of Boolean dataset entries:      │ 1                  │
+    │ Boolean entry 1 value (0 or 1):         │ attack-specific    │
+    └──────────────────────────────────────────────────────────────┘
+
+    The first 4 items (APPID, MAC, VLAN ID, VLAN priority),
+    goCBRef, datSet, and confRev are the SAME for every session.
+    Only stNum, resend interval, packets, and boolean change.
+
+    Defaults used when you press Enter:
+        Destination MAC:  01:0C:CD:01:00:01
+        goCBRef:          simpleIOGenericIO/LLN0$GO$gcbAnalogValues1
+        datSet:           simpleIOGenericIO/LLN0$AnalogValues1
+
+    Note: sqNum starts at your entered value and auto-increments
+    each packet. stNum stays fixed for the whole run.
+
+
+SV ATTACK — command to run (as root):
+    sudo ./svAttack <interface>
+    Example: sudo ./svAttack eth0
+
+    The tool prompts for the following in order:
+
+    Step 1 — Bus selection:
+    ┌──────────────────────────────────────────────────────────────┐
+    │ Prompt                                  │ What to enter      │
+    ├──────────────────────────────────────────────────────────────┤
+    │ How many buses/ASDUs to target (1-15):  │ 1                  │
+    │ Select ASDU/bus number (1-15):          │ 2                  │
+    │ Bus 2 Voltage 1:                        │ attack-specific    │
+    │ Bus 2 Voltage 2:                        │ attack-specific    │
+    │ Bus 2 Voltage 3:                        │ attack-specific    │
+    │ Bus 2 Current 1:                        │ attack-specific    │
+    │ Bus 2 Current 2:                        │ attack-specific    │
+    │ Bus 2 Current 3:                        │ attack-specific    │
+    │ Starting smpCnt for bus 2:              │ attack-specific    │
+    └──────────────────────────────────────────────────────────────┘
+
+    Step 2 — Timing:
+    ┌──────────────────────────────────────────────────────────────┐
+    │ Number of packets to send:              │ attack-specific    │
+    │ Packet sending speed (ms):              │ attack-specific    │
+    └──────────────────────────────────────────────────────────────┘
+
+    ASDU must be 1 to match the default gocbRef (bus 1).
+    Voltages and currents are entered one value at a time —
+    press Enter after each number.
+
+
+════════════════════════════════════════════════════════════════
+SESSION PROCEDURE — FOLLOW THIS FOR EVERY SESSION
+════════════════════════════════════════════════════════════════
+
+    1.  Start Wireshark capture on the SPAN port interface
+    2.  Wait 2 minutes — do nothing, let legitimate traffic run
+    3.  Look at the clock — write down HH:MM:SS RIGHT NOW
+    4.  Start the attack immediately after writing the time
+        (For sessions with SV: start BOTH tools now,
+         in two separate terminal windows)
+    5.  Let the attack run to completion
+    6.  Look at the clock again — write down HH:MM:SS RIGHT NOW
+    7.  Wait 2 minutes — do nothing, let legitimate traffic run
+    8.  Stop Wireshark capture
+    9.  Save the pcap using the exact filename listed below
+   10.  Add one row to timestamps.csv IMMEDIATELY — do not wait
+
+Steps 3 and 6 are critical. If you miss them and the pcap
+has no clean traffic buffer, the test results will be broken
+(Legitimate support=0). Do not skip.
+
+
+════════════════════════════════════════════════════════════════
+PART A — TRAINING SESSIONS
+════════════════════════════════════════════════════════════════
+
+──────────────────────────────────────────────────────────────
+SESSION 1 — baseline_01.pcapng
+──────────────────────────────────────────────────────────────
+WHAT IT IS:
+Pure legitimate traffic with no attacks. This is the most
+important file for the Isolation Forest model — it trains
+exclusively on this to learn what normal traffic looks like.
+
+WHAT TO DO:
+Start Wireshark, do nothing for 15 minutes, stop and save.
+Do NOT run any attack tool during this session.
+
+NO timestamp entry needed — entire capture is legitimate.
+
+──────────────────────────────────────────────────────────────
+SESSION 2 — goose_fast_01.pcapng
+──────────────────────────────────────────────────────────────
+WHAT IT IS:
+Obvious GOOSE replay attack. Fast rate, high stNum, boolean 1.
+Easiest attack for the model to learn — anchors training.
+
+ATTACK TOOL: gooseAttack only (one terminal window)
+
+Run:  sudo ./gooseAttack eth0
+
+Enter at each prompt:
+    APPID:                             1000
+    Destination MAC:                   [press Enter]
+    VLAN ID:                           0
+    VLAN priority:                     0
+    goCBRef:                           [press Enter]
+    datSet reference:                  [press Enter]
+    confRev:                           1
+    Starting stNum:                    9999
+    Starting sqNum:                    1
+    timeAllowedToLive (ms):            500
+    Resend interval (ms):              100
+    Number of packets:                 500
+    Number of Boolean entries:         1
+    Boolean entry 1 value:             1
+
+──────────────────────────────────────────────────────────────
+SESSION 3 — goose_slow_sv_highvolt_01.pcapng
+──────────────────────────────────────────────────────────────
+WHAT IT IS:
+Two attacks simultaneously:
+  GOOSE: slow rate (500ms matches legitimate timing, so timing
+         alone cannot flag it — model must use stNum deviation)
+  SV:    abnormally high voltage (50000V vs typical 230V)
+         Correlation_Mismatch fires because GOOSE boolean=1
+         (breaker tripped) but SV shows 50000V — contradiction.
+
+HOW TO RUN: Two terminal windows. Start both at the same time.
+
+GOOSE ATTACK — terminal window 1:
+Run:  sudo ./gooseAttack eth0
+
+Enter at each prompt:
+    APPID:                             1000
+    Destination MAC:                   [press Enter]
+    VLAN ID:                           0
+    VLAN priority:                     0
+    goCBRef:                           [press Enter]
+    datSet reference:                  [press Enter]
+    confRev:                           1
+    Starting stNum:                    9999
+    Starting sqNum:                    1
+    timeAllowedToLive (ms):            500
+    Resend interval (ms):              500
+    Number of packets:                 200
+    Number of Boolean entries:         1
+    Boolean entry 1 value:             1
+
+SV ATTACK — terminal window 2:
+Run:  sudo ./svAttack eth0
+
+Enter at each prompt:
+    How many buses to target:          1
+    ASDU/bus number:                   1
+    Bus 1 Voltage 1:50000
+    Bus 1 Voltage 2:                   50000
+    Bus 1 Voltage 3:                   50000
+    Bus 1 Current 1:                   100
+    Bus 1 Current 2:                   100
+    Bus 1 Current 3:                   100
+    Starting smpCnt for bus 1:         9999
+    Number of packets:                 300
+    Packet sending speed (ms):         10
+
+──────────────────────────────────────────────────────────────
+SESSION 4 — goose_stealth_sv_lowvolt_01.pcapng
+──────────────────────────────────────────────────────────────
+WHAT IT IS:
+Two attacks simultaneously — hardest session:
+  GOOSE: stealth replay. Matches timing, low stNum that looks
+         sequential, boolean 0 instead of 1. Mimics legitimate
+         traffic as closely as possible.
+  SV:    near-zero voltage, dangerously high current. Low
+         starting smpCnt to test counter continuity detection.
+
+HOW TO RUN: Two terminal windows. Start both at the same time.
+
+GOOSE ATTACK — terminal window 1:
+Run:  sudo ./gooseAttack eth0
+
+Enter at each prompt:
+    APPID:                             1000
+    Destination MAC:                   [press Enter]
+    VLAN ID:                           0
+    VLAN priority:                     0
+    goCBRef:                           [press Enter]
+    datSet reference:                  [press Enter]
+    confRev:                           1
+    Starting stNum:                    3
+    Starting sqNum:                    1
+    timeAllowedToLive (ms):            500
+    Resend interval (ms):              500
+    Number of packets:                 200
+    Number of Boolean entries:         1
+    Boolean entry 1 value:             0
+
+SV ATTACK — terminal window 2:
+Run:  sudo ./svAttack eth0
+
+Enter at each prompt:
+    How many buses to target:          1
+    ASDU/bus number:                   1
+    Bus 1 Voltage 1:10
+    Bus 1 Voltage 2:                   10
+    Bus 1 Voltage 3:                   10
+    Bus 1 Current 1:                   8000
+    Bus 1 Current 2:                   8000
+    Bus 1 Current 3:                   8000
+    Starting smpCnt for bus 1:         1
+    Number of packets:                 300
+    Packet sending speed (ms):         10
+
+──────────────────────────────────────────────────────────────
+SESSION 5 — goose_medium_01.pcapng
+──────────────────────────────────────────────────────────────
+WHAT IT IS:
+Medium-speed GOOSE only. Fills the gap between Session 2
+(100ms fast) and Session 3 (500ms slow). The current model
+struggles with medium-speed attacks — training on this style
+will directly improve recall on test_goose_medium.pcapng.
+
+ATTACK TOOL: gooseAttack only (one terminal window)
+
+Run:  sudo ./gooseAttack eth0
+
+Enter at each prompt:
+    APPID:                             1000
+    Destination MAC:                   [press Enter]
+    VLAN ID:                           0
+    VLAN priority:                     0
+    goCBRef:                           [press Enter]
+    datSet reference:                  [press Enter]
+    confRev:                           1
+    Starting stNum:                    500
+    Starting sqNum:                    1
+    timeAllowedToLive (ms):            500
+    Resend interval (ms):              300
+    Number of packets:                 300
+    Number of Boolean entries:         1
+    Boolean entry 1 value:             1
+
+──────────────────────────────────────────────────────────────
+SESSION 6 — goose_sv_mid_01.pcapng
+──────────────────────────────────────────────────────────────
+WHAT IT IS:
+Two attacks simultaneously with mid-range parameters — fills
+the gap between the high-value (Session 3) and low-value
+(Session 4) SV attacks. Gives the model a third SV style to
+generalise from.
+
+HOW TO RUN: Two terminal windows. Start both at the same time.
+
+GOOSE ATTACK — terminal window 1:
+Run:  sudo ./gooseAttack eth0
+
+Enter at each prompt:
+    APPID:                             1000
+    Destination MAC:                   [press Enter]
+    VLAN ID:                           0
+    VLAN priority:                     0
+    goCBRef:                           [press Enter]
+    datSet reference:                  [press Enter]
+    confRev:                           1
+    Starting stNum:                    200
+    Starting sqNum:                    1
+    timeAllowedToLive (ms):            500
+    Resend interval (ms):              300
+    Number of packets:                 250
+    Number of Boolean entries:         1
+    Boolean entry 1 value:             1
+
+SV ATTACK — terminal window 2:
+Run:  sudo ./svAttack eth0
+
+Enter at each prompt:
+    How many buses to target:          1
+    ASDU/bus number:                   1
+    Bus 1 Voltage 1:500
+    Bus 1 Voltage 2:                   500
+    Bus 1 Voltage 3:                   500
+    Bus 1 Current 1:                   2000
+    Bus 1 Current 2:                   2000
+    Bus 1 Current 3:                   2000
+    Starting smpCnt for bus 1:         100
+    Number of packets:                 300
+    Packet sending speed (ms):         10
+
+
+════════════════════════════════════════════════════════════════
+PART B — TEST SESSIONS
+════════════════════════════════════════════════════════════════
+
+IMPORTANT: Capture these on a completely separate occasion from
+training. If the model is evaluated on data it trained on, the
+results are meaningless.
+
+Test sessions use the SAME attack types as training but
+DIFFERENT parameter values. This verifies the model learned
+general attack behaviour, not just specific parameter values.
+
+Create a separate timestamps file: pcaps/timestamps_test.csv
+(same header as timestamps.csv)
+
+REMINDER: The 2-minute buffers before and after the attack are
+especially critical here. Without them, Legitimate support=0
+and false positive rate cannot be measured at all.
+
+──────────────────────────────────────────────────────────────
+TEST SESSION 1 — test_goose_medium.pcapng
+──────────────────────────────────────────────────────────────
+ATTACK TOOL: gooseAttack only (one terminal window)
+
+Run:  sudo ./gooseAttack eth0
+
+Enter at each prompt:
+    APPID:                             1000
+    Destination MAC:                   [press Enter]
+    VLAN ID:                           0
+    VLAN priority:                     0
+    goCBRef:                           [press Enter]
+    datSet reference:                  [press Enter]
+    confRev:                           1
+    Starting stNum:                    5000
+    Starting sqNum:                    1
+    timeAllowedToLive (ms):            500
+    Resend interval (ms):              300
+    Number of packets:                 250
+    Number of Boolean entries:         1
+    Boolean entry 1 value:             1
+
+──────────────────────────────────────────────────────────────
+TEST SESSION 2 — test_goose_sv_mid.pcapng
+──────────────────────────────────────────────────────────────
+Two attacks simultaneously — parameters different from all
+training sessions.
+
+HOW TO RUN: Two terminal windows. Start both at the same time.
+
+GOOSE ATTACK — terminal window 1:
+Run:  sudo ./gooseAttack eth0
+
+Enter at each prompt:
+    APPID:                             1000
+    Destination MAC:                   [press Enter]
+    VLAN ID:                           0
+    VLAN priority:                     0
+    goCBRef:                           [press Enter]
+    datSet reference:                  [press Enter]
+    confRev:                           1
+    Starting stNum:                    7
+    Starting sqNum:                    1
+    timeAllowedToLive (ms):            500
+    Resend interval (ms):              500
+    Number of packets:                 200
+    Number of Boolean entries:         1
+    Boolean entry 1 value:             0
+
+SV ATTACK — terminal window 2:
+Run:  sudo ./svAttack eth0
+
+Enter at each prompt:
+    How many buses to target:          1
+    ASDU/bus number:                   1
+    Bus 1 Voltage 1:5
+    Bus 1 Voltage 2:                   5
+    Bus 1 Voltage 3:                   5
+    Bus 1 Current 1:                   5000
+    Bus 1 Current 2:                   5000
+    Bus 1 Current 3:                   5000
+    Starting smpCnt for bus 1:         50
+    Number of packets:                 300
+    Packet sending speed (ms):         10
+
+
+════════════════════════════════════════════════════════════════
+AFTER CAPTURING — VERIFY YOUR TIMESTAMPS
+════════════════════════════════════════════════════════════════
+
+Run find_attack_windows_v3.py on each attack pcap to cross-check
+your manually recorded times:
+
+    .\.venv\Scripts\python.exe ".\python_files\find_attack_windows_v3.py" `
+        ".\pcaps\goose_fast_01.pcapng" `
+        ".\pcaps\goose_slow_sv_highvolt_01.pcapng" `
+        ".\pcaps\goose_stealth_sv_lowvolt_01.pcapng" `
+        ".\pcaps\goose_medium_01.pcapng" `
+        ".\pcaps\goose_sv_mid_01.pcapng"
+
+If the detected window matches your written times within ~5
+seconds, your timestamps.csv is correct. If it differs
+significantly, open the pcap in Wireshark and verify manually.
+
+The script is a cross-check, not a replacement for writing
+down the times during capture.

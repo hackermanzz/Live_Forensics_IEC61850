@@ -1,0 +1,14 @@
+fastapi
+uvicorn[standard]
+python-multipart
+pydantic
+httpx
+jinja2
+joblib==1.5.3
+scapy
+PyYAML
+pandas==3.0.3
+numpy==2.5.1
+scipy==1.18.0
+scikit-learn==1.8.0
+xgboost==3.3.0

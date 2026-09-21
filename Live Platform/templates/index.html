@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>{{ page_title or "Live Forensic Platform" }}</title>
+    <style>
+      :root {
+        --bg: #101417;
+        --panel: #171d21;
+        --panel-2: #1f272c;
+        --line: #334047;
+        --text: #edf3f5;
+        --muted: #9fb0b8;
+        --blue: #5fb3d9;
+        --green: #78c28c;
+        --amber: #e3b85b;
+        --red: #e57474;
+      }
+
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: Arial, sans-serif;
+        background: var(--bg);
+        color: var(--text);
+      }
+
+      header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 18px 24px;
+        border-bottom: 1px solid var(--line);
+        background: #141a1e;
+      }
+
+      h1, h2, h3, p { margin: 0; }
+      h1 { font-size: 22px; font-weight: 700; }
+      h2 { font-size: 15px; margin-bottom: 12px; color: var(--muted); }
+      h3 { font-size: 14px; margin-bottom: 8px; }
+      button, input::file-selector-button, select, .text-filter, .button-link {
+        border: 1px solid var(--line);
+        background: var(--panel-2);
+        color: var(--text);
+        padding: 8px 11px;
+        border-radius: 6px;
+        cursor: pointer;
+        text-decoration: none;
+        font-size: 13px;
+      }
+      button.primary { background: var(--blue); color: #08161c; border-color: var(--blue); font-weight: 700; }
+      button.danger { color: var(--red); }
+      .button-link.active { border-color: var(--blue); color: var(--blue); background: #162a33; }
+      input { color: var(--muted); max-width: 280px; }
+      select, .text-filter { min-width: 130px; }
+      .interface-select { min-width: 260px; max-width: 340px; }
+      .header-copy { min-width: 320px; max-width: 760px; }
+      .topline {
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        flex-wrap: wrap;
+      }
+      .nav-tabs, .mode-actions, .utility-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+      }
+      .nav-tabs {
+        width: 100%;
+        justify-content: flex-end;
+      }
+      .mode-actions {
+        min-height: 38px;
+        padding-top: 2px;
+      }
+      .utility-actions {
+        width: 100%;
+        justify-content: flex-end;
+      }
+
+      main {
+        display: grid;
+        grid-template-columns: 1fr 380px;
+        gap: 16px;
+        padding: 16px;
+      }
+
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .panel, .metric, .detail {
+        background: var(--panel);
+        border: 1px solid var(--line);
+        border-radius: 8px;
+        padding: 14px;
+      }
+
+      .metric strong { display: block; font-size: 28px; line-height: 1.1; margin-bottom: 5px; }
+      .metric span { color: var(--muted); font-size: 13px; }
+      .risk-high strong, .severity-high, .severity-critical { color: var(--red); }
+      .risk-medium strong, .severity-medium { color: var(--amber); }
+      .risk-low strong, .severity-low { color: var(--green); }
+      .severity-info { color: var(--blue); }
+
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-items: center;
+        justify-content: flex-end;
+        max-width: 720px;
+      }
+
+      .columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 16px;
+      }
+
+      .filters {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+      }
+
+      .section-space { margin-bottom: 16px; }
+
+      table { width: 100%; border-collapse: collapse; font-size: 13px; }
+      th, td { border-bottom: 1px solid var(--line); padding: 9px 7px; text-align: left; vertical-align: top; }
+      th { color: var(--muted); font-weight: 600; }
+      tr.alert-row { cursor: pointer; }
+      tr.alert-row:hover { background: #202a30; }
+      .muted { color: var(--muted); }
+      .pill {
+        display: inline-block;
+        padding: 3px 7px;
+        border-radius: 999px;
+        background: var(--panel-2);
+        border: 1px solid var(--line);
+        font-size: 12px;
+      }
+      .list { display: grid; gap: 8px; }
+      .panel-note { font-size: 12px; margin: -4px 0 8px; }
+      .list-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 13px;
+      }
+      .list-row:last-child { border-bottom: 0; }
+      .summary-row {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 10px;
+        padding: 9px 0;
+        border-bottom: 1px solid var(--line);
+        font-size: 13px;
+      }
+      .summary-row:last-child { border-bottom: 0; }
+      .summary-title { font-weight: 700; }
+      .summary-note {
+        color: var(--muted);
+        font-size: 12px;
+        margin-top: 3px;
+      }
+      .summary-value {
+        text-align: right;
+        font-weight: 700;
+        min-width: 92px;
+      }
+      .bar {
+        grid-column: 1 / -1;
+        height: 6px;
+        background: #111619;
+        border-radius: 999px;
+        overflow: hidden;
+      }
+      .bar-fill {
+        height: 100%;
+        background: var(--blue);
+        border-radius: inherit;
+      }
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: #111619;
+        border: 1px solid var(--line);
+        border-radius: 6px;
+        padding: 10px;
+        color: #dce7eb;
+        max-height: 430px;
+        overflow: auto;
+      }
+
+      @media (max-width: 1100px) {
+        main { grid-template-columns: 1fr; }
+        .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 700px) {
+        header { align-items: flex-start; flex-direction: column; }
+        .grid, .columns { grid-template-columns: 1fr; }
+        input { max-width: 100%; width: 100%; }
+        .controls, .nav-tabs, .utility-actions { justify-content: flex-start; width: 100%; }
+        .header-copy { min-width: 0; }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div class="header-copy">
+        <div class="topline">
+          <h1>{{ page_title or "Live Forensic Platform" }}</h1>
+          <span class="pill">{{ page_mode|upper }}</span>
+        </div>
+        <p class="muted">{{ page_description or "Rule-based and ML monitoring for IEC 61850 traffic." }}</p>
+        <p class="muted" id="engineStatus">Checking detection engine...</p>
+      </div>
+      <div class="controls">
+        <div class="nav-tabs">
+          <a class="button-link {% if page_mode == 'replay' %}active{% endif %}" href="/replay">PCAP Replay</a>
+          <a class="button-link {% if page_mode == 'live' %}active{% endif %}" href="/live">Live Capture</a>
+          <a class="button-link" href="/monitor">IED Monitor</a>
+        </div>
+        <div class="mode-actions">
+        {% if page_mode == 'replay' %}
+          <input type="file" id="pcapUpload" />
+          <button class="primary" id="replayButton" onclick="replayPcap()">Replay PCAP</button>
+          <button class="danger" id="cancelReplayButton" onclick="cancelReplay()" style="display: none;">Pause Replay</button>
+        {% endif %}
+        {% if page_mode == 'live' %}
+          <select id="interfaceSelect" class="interface-select" title="Network interface" onchange="selectedInterface()"></select>
+          <input class="text-filter" id="manualInterface" placeholder="Manual interface name" style="display: none;" />
+          <button onclick="loadInterfaces()">Refresh Interfaces</button>
+          <button class="primary" onclick="startLive()">Start Live</button>
+          <button id="diagnosticButton" onclick="runDiagnosticCapture()">Diagnostic 5s</button>
+          <button onclick="stopLive()">Stop Live</button>
+        {% endif %}
+        </div>
+        <div class="utility-actions">
+          <button onclick="createDemoAlert()">Demo Alert</button>
+          <button class="danger" onclick="clearMemory()">Clear</button>
+        </div>
+      </div>
+    </header>
+
+    <main>
+      <section>
+        <div class="grid">
+          <div class="metric" id="riskCard"><strong id="riskScore">0</strong><span id="riskLabel">Risk: Low</span></div>
+          {% if page_mode == 'replay' %}
+          <div class="metric"><strong id="rawPacketCount">0</strong><span>Raw PCAP packets</span></div>
+          <div class="metric"><strong id="goosePacketCount">0</strong><span>GOOSE packets</span></div>
+          <div class="metric"><strong id="svPacketCount">0</strong><span>SV packets</span></div>
+          <div class="metric"><strong id="skippedPacketCount">0</strong><span>Skipped packets</span></div>
+          {% endif %}
+          {% if page_mode == 'live' %}
+          <div class="metric"><strong id="liveCapturedCount">0</strong><span>Captured packets</span></div>
+          <div class="metric"><strong id="liveProcessedCount">0</strong><span>Processed packets</span></div>
+          <div class="metric"><strong id="liveIgnoredCount">0</strong><span>Ignored packets</span></div>
+          <div class="metric"><strong id="liveQueueDepth">0</strong><span>Queue depth</span></div>
+          {% endif %}
+          <div class="metric"><strong id="packetCount">0</strong><span>Analysis rows</span></div>
+          <div class="metric"><strong id="alertCount">0</strong><span>Grouped alerts</span></div>
+          <div class="metric"><strong id="incidentCount">0</strong><span>Incidents</span></div>
+        </div>
+
+        <div class="panel section-space">
+          <h2>{% if page_mode == 'live' %}Live Capture Status{% else %}Replay Status{% endif %}</h2>
+          {% if page_mode == 'replay' %}
+          <div id="replayStatus" class="muted">No replay has been run in this session.</div>
+          {% endif %}
+          {% if page_mode == 'live' %}
+          <div id="liveStatus" class="muted">Live capture status loading...</div>
+          {% endif %}
+        </div>
+
+        <div class="panel section-space">
+          <h2>Live Alerts</h2>
+          <div class="filters">
+            <select id="severityFilter" onchange="renderAlerts()">
+              <option value="">All severities</option>
+              <option value="critical">Critical</option>
+              <option value="high">High</option>
+              <option value="medium">Medium</option>
+              <option value="low">Low</option>
+              <option value="info">Info</option>
+            </select>
+            <select id="protocolFilter" onchange="renderAlerts()">
+              <option value="">All protocols</option>
+              <option value="GOOSE">GOOSE</option>
+              <option value="SV">SV</option>
+              <option value="OTHER">OTHER</option>
+            </select>
+            <input class="text-filter" id="searchFilter" oninput="renderAlerts()" placeholder="Search bus, MAC, rule" />
+          </div>
+          <table>
+            <thead>
+              <tr><th>Last Seen</th><th>Source</th><th>Protocol</th><th>Severity</th><th>Detections</th><th>Rules</th><th>Message</th></tr>
+            </thead>
+            <tbody id="alertsBody"></tbody>
+          </table>
+        </div>
+
+        <div class="columns">
+          <div class="panel">
+            <h2>Protocol Traffic Summary</h2>
+            <div id="protocolBreakdown" class="list"></div>
+          </div>
+          <div class="panel">
+            <h2>Filtered Traffic</h2>
+            <div id="filteredTraffic" class="list"></div>
+          </div>
+        </div>
+
+        <div class="columns">
+          <div class="panel">
+            <h2>Active Buses / Devices by Activity</h2>
+            <p class="muted panel-note">Excluded buses are ignored before storage and ML analysis.</p>
+            <div id="busBreakdown" class="list"></div>
+          </div>
+          <div class="panel">
+            <h2>IED Inventory</h2>
+            <div id="inventoryTable" class="list"></div>
+          </div>
+        </div>
+
+        {% if page_mode == 'replay' %}
+        <div class="columns">
+          <div class="panel">
+            <h2>Replay History</h2>
+            <div id="replayHistory" class="list"></div>
+          </div>
+        </div>
+        {% endif %}
+      </section>
+
+      <aside class="detail">
+        <h2>Issue Details</h2>
+        <div id="alertDetail" class="muted">Select an alert to inspect violated rules, packet metadata, and source context.</div>
+        <h2 style="margin-top: 18px;">Recent Packets</h2>
+        <div id="recentPackets" class="list"></div>
+      </aside>
+    </main>
+
+    <script>
+      const apiBase = '/api';
+      const pageMode = '{{ page_mode or "replay" }}';
+      let alertCache = [];
+      let activeReplayJob = null;
+      let replayPollActive = false;
+      let diagnosticRunning = false;
+
+      function severityClass(value) {
+        return `severity-${String(value || 'low').toLowerCase()}`;
+      }
+
+      function renderList(targetId, values, emptyText) {
+        const target = document.getElementById(targetId);
+        const entries = Object.entries(values || {}).sort((a, b) => b[1] - a[1]).slice(0, 8);
+        target.innerHTML = entries.length
+          ? entries.map(([key, value]) => `<div class="list-row"><span>${key}</span><strong>${value}</strong></div>`).join('')
+          : `<p class="muted">${emptyText}</p>`;
+      }
+
+      function pct(value, total) {
+        if (!total) return 0;
+        return Math.round((value / total) * 100);
+      }
+
+      function renderBar(percent) {
+        return `<div class="bar"><div class="bar-fill" style="width: ${Math.min(Math.max(percent, 0), 100)}%;"></div></div>`;
+      }
+
+      function renderProtocolSummary(data) {
+        const target = document.getElementById('protocolBreakdown');
+        const filtered = data.filtered_traffic || {};
+        const processed = data.processed_protocol_counts || {};
+        const live = data.live_capture || {};
+        const goosePackets = pageMode === 'replay'
+          ? (filtered.pcap_goose_packets || processed.GOOSE || 0)
+          : (processed.GOOSE || 0);
+        const svPackets = pageMode === 'replay'
+          ? (filtered.pcap_sv_packets || 0)
+          : (processed.SV || 0);
+        const gooseRows = processed.GOOSE || goosePackets;
+        const svRows = processed.SV || svPackets;
+        const rawProtocolTotal = pageMode === 'live'
+          ? (live.processed_packet_count || goosePackets + svPackets)
+          : (goosePackets + svPackets);
+
+        if (!goosePackets && !svPackets && !gooseRows && !svRows) {
+          target.innerHTML = '<p class="muted">No GOOSE/SV packets processed yet.</p>';
+          return;
+        }
+
+        const rows = [
+          {
+            name: 'GOOSE',
+            packets: goosePackets,
+            rows: gooseRows,
+            note: pageMode === 'live'
+              ? 'Live control/event messages inspected by rules and ML.'
+              : 'Control/event messages inspected by rules and ML.',
+          },
+          {
+            name: 'SV',
+            packets: svPackets,
+            rows: svRows,
+            note: svRows > svPackets
+              ? 'Sampled Value frames expanded into measurement rows.'
+              : 'Sampled Value measurement traffic inspected.',
+          },
+        ];
+
+        target.innerHTML = rows.map(row => {
+          const share = pct(row.packets || row.rows, rawProtocolTotal || (gooseRows + svRows));
+          const packetText = `${row.packets || 0} packets`;
+          const rowText = `${row.rows || 0} analysis rows`;
+          return `
+            <div class="summary-row">
+              <div>
+                <div class="summary-title">${row.name}</div>
+                <div class="summary-note">${share}% of processed protocol packets</div>
+                <div class="summary-note">${packetText}, ${rowText}</div>
+                <div class="summary-note">${row.note}</div>
+              </div>
+              <div class="summary-value">${row.packets || row.rows}</div>
+              ${renderBar(share)}
+            </div>`;
+        }).join('');
+      }
+
+      function renderBusSummary(busCounts) {
+        const target = document.getElementById('busBreakdown');
+        const entries = Object.entries(busCounts || {}).sort((a, b) => b[1] - a[1]);
+        const total = Object.values(busCounts || {}).reduce((sum, value) => sum + Number(value || 0), 0);
+
+        if (!entries.length) {
+          target.innerHTML = '<p class="muted">No bus information available yet.</p>';
+          return;
+        }
+
+        target.innerHTML = entries.map(([bus, value]) => {
+          const share = pct(Number(value || 0), total);
+          return `
+            <div class="summary-row">
+              <div>
+                <div class="summary-title">${bus}</div>
+                <div class="summary-note">${share}% of analysis activity</div>
+              </div>
+              <div class="summary-value">${value}</div>
+              ${renderBar(share)}
+            </div>`;
+        }).join('');
+      }
+
+      async function loadStats() {
+        const res = await fetch(`${apiBase}/stats`);
+        const data = await res.json();
+        const stats = data.stats || {};
+        const live = data.live_capture || {};
+        const risk = data.risk || { score: 0, label: 'Low' };
+
+        document.getElementById('riskScore').textContent = risk.score;
+        document.getElementById('riskLabel').textContent = `Risk: ${risk.label}`;
+        document.getElementById('riskCard').className = `metric risk-${String(risk.label).toLowerCase()}`;
+        document.getElementById('packetCount').textContent = data.filtered_traffic?.analysis_rows ?? stats.total_packets ?? 0;
+        const rawPacketCount = document.getElementById('rawPacketCount');
+        if (rawPacketCount) rawPacketCount.textContent = data.filtered_traffic?.pcap_total_packets_seen || 0;
+        const goosePacketCount = document.getElementById('goosePacketCount');
+        if (goosePacketCount) goosePacketCount.textContent = data.filtered_traffic?.pcap_goose_packets || 0;
+        const svPacketCount = document.getElementById('svPacketCount');
+        if (svPacketCount) svPacketCount.textContent = data.filtered_traffic?.pcap_sv_packets || 0;
+        const skippedPacketCount = document.getElementById('skippedPacketCount');
+        if (skippedPacketCount) skippedPacketCount.textContent = data.filtered_traffic?.pcap_skipped_packets || 0;
+        const liveCapturedCount = document.getElementById('liveCapturedCount');
+        if (liveCapturedCount) liveCapturedCount.textContent = live.packet_count || 0;
+        const liveProcessedCount = document.getElementById('liveProcessedCount');
+        if (liveProcessedCount) liveProcessedCount.textContent = live.processed_packet_count || 0;
+        const liveIgnoredCount = document.getElementById('liveIgnoredCount');
+        if (liveIgnoredCount) liveIgnoredCount.textContent = live.ignored_packet_count || 0;
+        const liveQueueDepth = document.getElementById('liveQueueDepth');
+        if (liveQueueDepth) liveQueueDepth.textContent = `${live.queue_depth || 0}/${live.queue_limit || 0}`;
+        document.getElementById('alertCount').textContent = data.alert_count || 0;
+        document.getElementById('incidentCount').textContent = data.incident_count || 0;
+
+        renderProtocolSummary(data);
+        renderFilteredTraffic(data.filtered_traffic || {});
+        renderBusSummary(stats.bus_counts);
+        renderRecentPackets(data.recent_packets || []);
+
+        const replayStatus = document.getElementById('replayStatus');
+        if (replayStatus && !activeReplayJob) {
+          const latestReplay = (stats.replays || [])[0];
+          replayStatus.innerHTML = latestReplay
+            ? replaySummaryHtml(latestReplay.filename, latestReplay)
+            : 'No replay has been run in this session.';
+        }
+      }
+
+      async function loadEngineStatus() {
+        const res = await fetch(`${apiBase}/engine-status`);
+        const data = await res.json();
+        document.getElementById('engineStatus').textContent = `Rule engine: ${data.rule_engine}. ML: ${mlStatusText(data.ml_status)}. Mode: ${data.replay_mode}.`;
+        renderLiveStatus(data.live_capture || {});
+      }
+
+      function mlStatusText(status) {
+        const protocols = status?.protocols || {};
+        const parts = ['GOOSE', 'SV'].map(protocol => {
+          const item = protocols[protocol] || {};
+          const loaded = item.loaded_members ?? 0;
+          const expected = item.expected_members ?? 2;
+          const state = item.ready ? 'ready' : 'pending';
+          return `${protocol} ${loaded}/${expected} ${state}`;
+        });
+        return parts.join(', ');
+      }
+
+      function renderRecentPackets(packets) {
+        const target = document.getElementById('recentPackets');
+        target.innerHTML = packets.length
+          ? packets.slice(0, 10).map(packet => `
+              <div class="list-row">
+                <span>${packet.protocol || 'UNKNOWN'} <span class="muted">#${packet.index || '-'}</span><br /><span class="muted">${packet.src_mac || 'unknown'}</span></span>
+                <span class="pill">${packet.bus_num || 'unknown'}</span>
+              </div>`).join('')
+          : '<p class="muted">No packets processed yet.</p>';
+      }
+
+      function renderFilteredTraffic(filtered) {
+        const target = document.getElementById('filteredTraffic');
+        const pcapSkipped = filtered.pcap_skipped_packets || 0;
+        const pcapTotal = filtered.pcap_total_packets_seen || 0;
+        const liveIgnored = filtered.live_ignored_packets || 0;
+        const excludedBuses = filtered.excluded_buses?.length ? filtered.excluded_buses.join(', ') : 'configured excluded buses';
+        const rows = [
+          ['PCAP packets skipped', pcapSkipped],
+          ['Raw PCAP packets seen', pcapTotal],
+          [`Excluded buses ignored`, excludedBuses],
+          ['Live ignored by software filter', liveIgnored],
+        ];
+        target.innerHTML = rows.map(([label, value]) => `
+          <div class="list-row">
+            <span>${label}<br /><span class="muted">${filtered.filter || 'GOOSE/SV only'}</span></span>
+            <strong>${value}</strong>
+          </div>`).join('');
+      }
+
+      async function loadAlerts() {
+        const res = await fetch(`${apiBase}/alerts`);
+        alertCache = await res.json();
+        renderAlerts();
+      }
+
+      function renderAlerts() {
+        const alerts = filteredAlerts();
+        const body = document.getElementById('alertsBody');
+        if (!alerts.length) {
+          body.innerHTML = '<tr><td colspan="7" class="muted">No alerts received yet.</td></tr>';
+          return;
+        }
+        body.innerHTML = alerts.map(alert => `
+          <tr class="alert-row" onclick="loadAlertDetail(${alert.id})">
+            <td>${new Date(alert.timestamp).toLocaleString()}</td>
+            <td>${alert.source}</td>
+            <td>${alert.protocol}</td>
+            <td class="${severityClass(alert.severity)}">${alert.severity}</td>
+            <td>${alert.occurrence_count || 1}</td>
+            <td>${rulePills(alert)}</td>
+            <td>${alertMessage(alert)}</td>
+          </tr>`).join('');
+      }
+
+      function rulePills(alert) {
+        if (alert.source === 'ml_model') {
+          return modelPills(alert);
+        }
+        const category = alertCategory(alert).label;
+        const rules = alert.details?.rule_labels || alert.details?.rules_violated || alert.details?.reasons || [];
+        const pills = [];
+        if (category) pills.push(`<span class="pill">${escapeHtml(category)}</span>`);
+        rules.forEach(rule => pills.push(`<span class="pill">${escapeHtml(rule)}</span>`));
+        return pills.length
+          ? pills.join(' ')
+          : '<span class="muted">None</span>';
+      }
+
+      function modelPills(alert) {
+        const details = alert.details || {};
+        const modelDetails = details.model_details || {};
+        const memberResults = modelDetails.member_results || [];
+        const anomalyVotes = memberResults.filter(result => result.is_anomaly).length;
+        const modelScore = typeof details.confidence === 'number'
+          ? `${Math.round(details.confidence * 100)}% model score`
+          : null;
+        const votes = memberResults.length ? `${anomalyVotes}/${memberResults.length} model votes` : null;
+        const pills = [modelScore, votes].filter(Boolean);
+        return pills.length
+          ? pills.map(item => `<span class="pill">${item}</span>`).join(' ')
+          : '<span class="muted">Model output</span>';
+      }
+
+      function alertRules(alert) {
+        return alert.details?.rules_violated || alert.details?.reasons || [];
+      }
+
+      function alertBus(alert) {
+        const packet = alert.details?.latest_packet || alert.details?.first_packet || alert.details?.packet || {};
+        return packet.bus_num || 'unknown bus';
+      }
+
+      function alertPacket(alert) {
+        return alert.details?.latest_packet || alert.details?.first_packet || alert.details?.packet || {};
+      }
+
+      function alertIdentity(alert) {
+        const packet = alertPacket(alert);
+        return packet.gocbRef || packet.svID || packet.src_mac || null;
+      }
+
+      function alertContext(alert) {
+        const bus = alertBus(alert);
+        const identity = alertIdentity(alert);
+        return identity ? `${bus} / ${identity}` : bus;
+      }
+
+      function inferredRuleCategory(alert) {
+        const rules = alertRules(alert);
+        const hasMac = rules.some(rule => ['src_mac_mismatch', 'sv_src_mac_mismatch', 'sv_publisher_mac_mismatch', 'bus_mac_mismatch'].includes(rule));
+        const hasUnknown = rules.some(rule => ['unknown_gocbRef', 'unknown_svID'].includes(rule));
+        const hasTiming = rules.some(rule => ['abnormal_goose_interval'].includes(rule));
+        const hasCounter = rules.some(rule => ['stNum_decreased', 'smpCnt_decreased', 'stNum_jump', 'smpCnt_jump'].includes(rule));
+        if (hasUnknown && hasMac) return { label: 'Unexpected publisher', timing: hasTiming, counter: hasCounter };
+        if (hasMac) return { label: 'Publisher MAC mismatch', timing: hasTiming, counter: hasCounter };
+        if (hasCounter && hasTiming) return { label: 'Counter and timing anomaly', timing: true, counter: true };
+        if (hasCounter) return { label: 'Counter anomaly', timing: false, counter: true };
+        if (hasTiming) return { label: 'Timing anomaly', timing: true, counter: false };
+        if (hasUnknown) return { label: 'Unknown stream ID', timing: false, counter: false };
+        return { label: null, timing: false, counter: false };
+      }
+
+      function alertCategory(alert) {
+        const inferred = inferredRuleCategory(alert);
+        const label = alert.details?.rule_category_label || inferred.label;
+        return { ...inferred, label };
+      }
+
+      function alertMessage(alert) {
+        const category = alertCategory(alert);
+        const protocol = alert.protocol || 'UNKNOWN';
+        const bus = alertBus(alert);
+        if (category.label === 'Unexpected publisher') {
+          if (category.timing && category.counter) return `Unexpected ${protocol} publisher with timing and counter anomalies on ${bus}`;
+          if (category.timing) return `Unexpected ${protocol} publisher with timing anomaly on ${bus}`;
+          if (category.counter) return `Unexpected ${protocol} publisher with counter anomaly on ${bus}`;
+          return `Unexpected ${protocol} publisher on ${bus}`;
+        }
+        if (category.label === 'Publisher MAC mismatch') return `${protocol} publisher MAC mismatch on ${bus}`;
+        if (category.label === 'Counter and timing anomaly') return `${protocol} counter and timing anomaly on ${bus}`;
+        if (category.label === 'Counter anomaly') return `${protocol} counter anomaly on ${bus}`;
+        if (category.label === 'Timing anomaly') return `${protocol} timing anomaly on ${bus}`;
+        if (category.label === 'Unknown stream ID') return `Unknown ${protocol} stream on ${bus}`;
+        if (alert.source === 'ml_model') return `${protocol} ML anomaly on ${alertContext(alert)}`;
+        if (alert.message) {
+          return alert.message.includes(` on ${bus}`) ? alert.message : `${alert.message} on ${alertContext(alert)}`;
+        }
+        return `${protocol} alert on ${alertContext(alert)}`;
+      }
+
+      function filteredAlerts() {
+        const severity = document.getElementById('severityFilter').value;
+        const protocol = document.getElementById('protocolFilter').value;
+        const search = document.getElementById('searchFilter').value.trim().toLowerCase();
+        return alertCache.filter(alert => {
+          if (severity && String(alert.severity).toLowerCase() !== severity) return false;
+          if (protocol && alert.protocol !== protocol) return false;
+          if (!search) return true;
+          const haystack = JSON.stringify(alert).toLowerCase();
+          return haystack.includes(search);
+        });
+      }
+
+      async function loadAlertDetail(id) {
+        const res = await fetch(`${apiBase}/alerts/${id}`);
+        const alert = await res.json();
+        if (alert.error) {
+          document.getElementById('alertDetail').textContent = 'Alert not found.';
+          return;
+        }
+        const rules = alertRules(alert);
+        const ruleLabels = alert.details?.rule_labels || rules;
+        const evidence = {
+          detections_in_group: alert.occurrence_count || 1,
+          first_seen: alert.first_seen || alert.timestamp,
+          last_seen: alert.last_seen || alert.timestamp,
+          explanation: alert.details?.explanation || null,
+          recommended_action: alert.details?.recommended_action || null,
+          expected_mac: alert.details?.expected_mac || null,
+          first_packet: alert.details?.first_packet || alert.details?.packet || {},
+          latest_packet: alert.details?.latest_packet || alert.details?.packet || {},
+          packet_indexes_sample: alert.details?.packet_indexes_sample || [],
+          evidence_packets: alert.details?.evidence_packets || []
+        };
+        document.getElementById('alertDetail').innerHTML = `
+          <h3>${alertMessage(alert)}</h3>
+          <p><span class="pill ${severityClass(alert.severity)}">${alert.severity}</span> <span class="pill">${alert.protocol}</span> <span class="pill">${alert.source}</span></p>
+          ${alertCategory(alert).label ? `<p><span class="pill">${escapeHtml(alertCategory(alert).label)}</span></p>` : ''}
+          <p class="muted" style="margin: 10px 0;">${alert.occurrence_count || 1} detection(s) in this grouped alert, last seen ${new Date(alert.timestamp).toLocaleString()}</p>
+          <p>${alert.details?.explanation || ''}</p>
+          <p class="muted" style="margin-top: 8px;">${alert.details?.recommended_action || ''}</p>
+          <h3>Violated Rules</h3>
+          <p>${ruleLabels.length ? ruleLabels.map(rule => `<span class="pill" title="${escapeHtml(rule)}">${escapeHtml(rule)}</span>`).join(' ') : '<span class="muted">None listed</span>'}</p>
+          ${rules.length ? `<p class="muted">Raw rule ids: ${rules.map(escapeHtml).join(', ')}</p>` : ''}
+          <h3 style="margin-top: 12px;">Packet Evidence</h3>
+          <pre>${JSON.stringify(evidence, null, 2)}</pre>
+        `;
+      }
+
+      async function createDemoAlert() {
+        await fetch(`${apiBase}/alerts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            source: 'rule_engine',
+            protocol: 'GOOSE',
+            severity: 'high',
+            message: 'Suspicious GOOSE sequence detected',
+            details: { rules_violated: ['stNum_jump'], packet: { index: 'demo', gocbRef: 'demo' } }
+          })
+        });
+        refresh();
+      }
+
+      async function replayPcap() {
+        if (pageMode !== 'replay') return;
+        if (activeReplayJob) {
+          const replayStatus = document.getElementById('replayStatus');
+          if (replayStatus) replayStatus.innerHTML = `${activeReplayJob.filename}: scan already running. Cancel it before starting another replay.`;
+          return;
+        }
+        const fileInput = document.getElementById('pcapUpload');
+        const file = fileInput.files[0];
+        if (!file) return;
+        const button = document.getElementById('replayButton');
+        const cancelButton = document.getElementById('cancelReplayButton');
+        button.disabled = true;
+        button.textContent = 'Scanning...';
+        cancelButton.style.display = 'inline-block';
+        cancelButton.disabled = false;
+        cancelButton.textContent = 'Pause Replay';
+        document.getElementById('replayStatus').innerHTML = `Starting background scan for ${file.name}...`;
+        const formData = new FormData();
+        formData.append('file', file);
+        try {
+          const res = await fetch(`${apiBase}/replay-pcap`, { method: 'POST', body: formData });
+          const data = await res.json();
+          if (data.job_id) {
+            activeReplayJob = { id: data.job_id, filename: data.filename, startedAt: Date.now() };
+            document.getElementById('replayStatus').innerHTML = `${data.filename}: scan running in background. You can keep using the dashboard.`;
+            pollReplayJob(data.job_id, data.filename);
+          } else {
+            activeReplayJob = null;
+            showReplaySummary(data.filename, data.summary);
+            refresh();
+          }
+        } finally {
+          button.disabled = false;
+          button.textContent = 'Replay PCAP';
+          if (!activeReplayJob) cancelButton.style.display = 'none';
+        }
+      }
+
+      async function cancelReplay() {
+        if (!activeReplayJob) return;
+        const cancelButton = document.getElementById('cancelReplayButton');
+        const replayStatus = document.getElementById('replayStatus');
+        if (cancelButton) {
+          cancelButton.disabled = true;
+          cancelButton.textContent = 'Pausing...';
+        }
+        if (replayStatus) replayStatus.innerHTML = `${activeReplayJob.filename}: pausing replay...`;
+        try {
+          await fetch(`${apiBase}/replay-jobs/${activeReplayJob.id}/cancel`, { method: 'POST' });
+        } finally {
+          if (cancelButton) {
+            cancelButton.disabled = false;
+            cancelButton.textContent = 'Pause Replay';
+          }
+        }
+      }
+
+      async function pollReplayJob(jobId, filename) {
+        const statusEl = document.getElementById('replayStatus');
+        const cancelButton = document.getElementById('cancelReplayButton');
+        const replayButton = document.getElementById('replayButton');
+        if (!statusEl) return;
+        if (replayPollActive) return;
+        replayPollActive = true;
+        let attempts = 0;
+        try {
+        while (activeReplayJob && activeReplayJob.id === jobId) {
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          const res = await fetch(`${apiBase}/replay-jobs/${jobId}`);
+          const job = await res.json();
+          attempts += 1;
+          if (job.status === 'complete') {
+            activeReplayJob = null;
+            if (cancelButton) cancelButton.style.display = 'none';
+            if (replayButton) replayButton.disabled = false;
+            showReplaySummary(filename, job.summary);
+            refresh();
+            return;
+          }
+          if (job.status === 'cancelled') {
+            activeReplayJob = null;
+            if (cancelButton) cancelButton.style.display = 'none';
+            if (replayButton) replayButton.disabled = false;
+            const processed = job.summary?.packets_processed ?? 0;
+            const seen = job.summary?.total_packets_seen ?? 0;
+            statusEl.innerHTML = `${filename}: replay cancelled after processing <strong>${processed}</strong> GOOSE/SV packets from <strong>${seen}</strong> packets seen.`;
+            refresh();
+            return;
+          }
+          if (job.status === 'failed') {
+            activeReplayJob = null;
+            if (cancelButton) cancelButton.style.display = 'none';
+            if (replayButton) replayButton.disabled = false;
+            statusEl.innerHTML = `${filename}: scan failed. <span class="muted">${job.error || 'Unknown error'}</span>`;
+            return;
+          }
+          if (job.status === 'cancel_requested') {
+            statusEl.innerHTML = `${filename}: pause requested, stopping replay...`;
+            refresh();
+            continue;
+          }
+          statusEl.innerHTML = `${filename}: scan still running in background (${attempts * 2}s elapsed).`;
+          refresh();
+        }
+        } finally {
+          replayPollActive = false;
+        }
+      }
+
+      async function reconnectReplayJob() {
+        if (pageMode !== 'replay' || activeReplayJob) return;
+        const replayStatus = document.getElementById('replayStatus');
+        const cancelButton = document.getElementById('cancelReplayButton');
+        const replayButton = document.getElementById('replayButton');
+        try {
+          const res = await fetch(`${apiBase}/replay-jobs/active`);
+          const job = await res.json();
+          if (!job || job.status === 'none' || !job.job_id) return;
+          activeReplayJob = { id: job.job_id, filename: job.filename || 'active replay', startedAt: Date.now() };
+          if (cancelButton) {
+            cancelButton.style.display = 'inline-block';
+            cancelButton.disabled = false;
+            cancelButton.textContent = 'Pause Replay';
+          }
+          if (replayButton) replayButton.disabled = true;
+          if (replayStatus) replayStatus.innerHTML = `${activeReplayJob.filename}: replay is still running in the backend. Reconnected after page refresh.`;
+          pollReplayJob(activeReplayJob.id, activeReplayJob.filename);
+        } catch (error) {
+          if (replayStatus) replayStatus.innerHTML = `Could not check active replay job. <span class="muted">${error}</span>`;
+        }
+      }
+
+      function showReplaySummary(filename, summary) {
+        const replayStatus = document.getElementById('replayStatus');
+        if (replayStatus) replayStatus.innerHTML = replaySummaryHtml(filename, summary);
+      }
+
+      function replaySummaryHtml(filename, summary) {
+        const seen = summary.total_packets_seen ?? summary.packets_processed;
+        const skipped = summary.skipped_packets ?? 0;
+        return `${filename}: <strong>${summary.packets_processed}</strong> GOOSE/SV packets processed by <strong>${summary.engine}</strong>, <strong>${skipped}</strong> irrelevant packets skipped from <strong>${seen}</strong> raw PCAP packets, <strong>${summary.detections_created}</strong> detections grouped into <strong>${summary.alerts_created}</strong> alert rows.`;
+      }
+
+      async function clearMemory() {
+        if (activeReplayJob) {
+          const replayStatus = document.getElementById('replayStatus');
+          if (replayStatus) replayStatus.innerHTML = `${activeReplayJob.filename}: stopping replay and clearing logs...`;
+          await fetch(`${apiBase}/replay-jobs/${activeReplayJob.id}/cancel`, { method: 'POST' });
+        } else {
+          await fetch(`${apiBase}/replay-jobs/cancel-active`, { method: 'POST' });
+        }
+        await fetch(`${apiBase}/clear`, { method: 'POST' });
+        activeReplayJob = null;
+        const cancelButton = document.getElementById('cancelReplayButton');
+        if (cancelButton) {
+          cancelButton.style.display = 'none';
+          cancelButton.disabled = false;
+          cancelButton.textContent = 'Pause Replay';
+        }
+        const replayStatus = document.getElementById('replayStatus');
+        if (replayStatus) replayStatus.textContent = 'Logs cleared. No replay has been run in this session.';
+        document.getElementById('alertDetail').textContent = 'Select an alert to inspect violated rules, packet metadata, and source context.';
+        refresh();
+      }
+
+      async function loadReplayHistory() {
+        const target = document.getElementById('replayHistory');
+        if (!target) return;
+        const res = await fetch(`${apiBase}/replays`);
+        const replays = await res.json();
+        target.innerHTML = replays.length
+          ? replays.map(replay => `
+              <div class="list-row">
+                <span>${replay.filename}<br /><span class="muted">${new Date(replay.finished_at).toLocaleString()}</span></span>
+                <span><strong>${replay.alerts_created}</strong> alert groups<br /><span class="muted">${replay.detections_created || 0} detections</span></span>
+              </div>`).join('')
+          : '<p class="muted">No PCAP replays yet.</p>';
+      }
+
+      async function loadInventory() {
+        const res = await fetch(`${apiBase}/inventory`);
+        const data = await res.json();
+        const devices = data.devices || [];
+        document.getElementById('inventoryTable').innerHTML = devices.length
+          ? devices.map(device => `
+              <div class="list-row">
+                <span><strong>${device.bus}</strong> <span class="pill">${device.status}</span><br /><span class="muted">${device.expected_mac || 'no MAC'} ${device.expected_ip || ''}</span></span>
+                <span>${device.alert_count} alert groups<br /><span class="muted">${device.detection_count || 0} detections, ${device.packet_count} analysis rows</span></span>
+              </div>`).join('')
+          : '<p class="muted">No configured IEDs found.</p>';
+      }
+
+      function renderLiveStatus(status) {
+        if (diagnosticRunning) return;
+        const label = status.enabled ? 'enabled' : 'stopped';
+        const liveStatus = document.getElementById('liveStatus');
+        if (liveStatus) {
+          const queue = `${status.queue_depth || 0}/${status.queue_limit || 0}`;
+          const capturedRate = status.captured_packets_per_second ?? 0;
+          const processedRate = status.processed_packets_per_second ?? 0;
+          const batchInfo = `${status.processing_avg_batch_size || 0} avg batch, ${status.processing_max_batch_size || 0} max batch`;
+          liveStatus.textContent = `Live capture: ${label}. Interface: ${status.interface || 'not configured'}. Captured ${capturedRate} pkt/s, processed ${processedRate} pkt/s, queue ${queue}, ${batchInfo}. ${status.message || ''}`;
+        }
+      }
+
+      async function loadInterfaces() {
+        if (pageMode !== 'live') return;
+        const select = document.getElementById('interfaceSelect');
+        if (!select) return;
+        select.innerHTML = '<option value="">Loading interfaces...</option>';
+        try {
+          const res = await fetch(`${apiBase}/live/interfaces`);
+          const data = await res.json();
+          const interfaces = data.interfaces || [];
+          const options = [
+            '<option value="">Arm without sniffing</option>',
+            ...interfaces.map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.label || item.name)}</option>`),
+            '<option value="__manual__">Manual interface name...</option>',
+          ];
+          select.innerHTML = options.join('');
+          const liveStatus = document.getElementById('liveStatus');
+          if (liveStatus && data.message) liveStatus.textContent = data.message;
+        } catch (error) {
+          select.innerHTML = '<option value="">Arm without sniffing</option><option value="__manual__">Manual interface name...</option>';
+          const liveStatus = document.getElementById('liveStatus');
+          if (liveStatus) liveStatus.textContent = 'Interface discovery failed. Enter an interface name manually.';
+        }
+      }
+
+      function selectedInterface() {
+        const select = document.getElementById('interfaceSelect');
+        const manual = document.getElementById('manualInterface');
+        if (!select) return null;
+        if (select.value === '__manual__') {
+          if (manual) manual.style.display = 'inline-block';
+          return manual?.value?.trim() || null;
+        }
+        if (manual) manual.style.display = 'none';
+        return select.value || null;
+      }
+
+      function escapeHtml(value) {
+        return String(value || '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#039;');
+      }
+
+      async function loadLiveStatus() {
+        const res = await fetch(`${apiBase}/live/status`);
+        renderLiveStatus(await res.json());
+      }
+
+      async function startLive() {
+        const interfaceName = selectedInterface();
+        const res = await fetch(`${apiBase}/live/start`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ interface: interfaceName || null })
+        });
+        renderLiveStatus(await res.json());
+      }
+
+      async function stopLive() {
+        const res = await fetch(`${apiBase}/live/stop`, { method: 'POST' });
+        renderLiveStatus(await res.json());
+      }
+
+      async function runDiagnosticCapture() {
+        const button = document.getElementById('diagnosticButton');
+        const liveStatus = document.getElementById('liveStatus');
+        const interfaceName = selectedInterface();
+        diagnosticRunning = true;
+        if (button) {
+          button.disabled = true;
+          button.textContent = 'Checking...';
+        }
+        if (liveStatus) liveStatus.textContent = 'Diagnostic capture running for 5 seconds...';
+        try {
+          const res = await fetch(`${apiBase}/live/diagnostic`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ interface: interfaceName || null, duration_seconds: 5 })
+          });
+          const data = await res.json();
+          if (liveStatus) {
+            liveStatus.textContent = `${data.message || 'Diagnostic capture complete.'} Interface: ${data.interface || 'not configured'}. Packets seen: ${data.packets_seen || 0}.`;
+          }
+        } catch (error) {
+          if (liveStatus) liveStatus.textContent = `Diagnostic capture failed: ${error}`;
+        } finally {
+          diagnosticRunning = false;
+          if (button) {
+            button.disabled = false;
+            button.textContent = 'Diagnostic 5s';
+          }
+        }
+      }
+
+      function refresh() {
+        loadStats();
+        loadAlerts();
+        loadReplayHistory();
+        loadInventory();
+        loadLiveStatus();
+      }
+
+      setInterval(refresh, 3000);
+      loadEngineStatus();
+      loadInterfaces();
+      refresh();
+      reconnectReplayJob();
+    </script>
+  </body>
+</html>

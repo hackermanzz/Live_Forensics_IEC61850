@@ -1,0 +1,183 @@
+excluded_buses:
+  - bus7
+
+gocbref_to_bus:
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues1: bus1
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues2: bus2
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues3: bus3
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues4: bus4
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues5: bus5
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues6: bus6
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues7: bus7
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues8: bus8
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues9: bus9
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues10: bus10
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues11: bus11
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues12: bus12
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues13: bus13
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues14: bus14
+
+gocbref_to_mac:
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues1: b8:27:eb:c2:49:ab
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues2: b8:27:eb:25:6e:58
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues3: b8:27:eb:a6:d6:37
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues4: b8:27:eb:a8:4e:9b
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues5: b8:27:eb:22:49:61
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues6: dc:a6:32:cc:44:be
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues7: b8:27:eb:39:8f:08
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues8: b8:27:eb:12:23:64
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues9: b8:27:eb:9a:66:cb
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues10: b8:27:eb:90:22:3b
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues11: b8:27:eb:61:6c:db
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues12: dc:a6:32:d8:7a:b6
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues13: b8:27:eb:13:da:b1
+  simpleIOGenericIO/LLN0$GO$gcbAnalogValues14: b8:27:eb:00:55:b5
+
+svid_to_bus:
+  '$simpleIOGenericIO/LLN0$AnalogValues1': bus1
+  '$simpleIOGenericIO/LLN0$AnalogValues2': bus2
+  '$simpleIOGenericIO/LLN0$AnalogValues3': bus3
+  '$simpleIOGenericIO/LLN0$AnalogValues4': bus4
+  '$simpleIOGenericIO/LLN0$AnalogValues5': bus5
+  '$simpleIOGenericIO/LLN0$AnalogValues6': bus6
+  '$simpleIOGenericIO/LLN0$AnalogValues8': bus8
+  '$simpleIOGenericIO/LLN0$AnalogValues9': bus9
+  '$simpleIOGenericIO/LLN0$AnalogValues10': bus10
+  '$simpleIOGenericIO/LLN0$AnalogValues11': bus11
+  '$simpleIOGenericIO/LLN0$AnalogValues12': bus12
+  '$simpleIOGenericIO/LLN0$AnalogValues13': bus13
+  '$simpleIOGenericIO/LLN0$AnalogValues14': bus14
+
+svid_to_mac:
+  '$simpleIOGenericIO/LLN0$AnalogValues1': b8:27:eb:c2:49:ab
+  '$simpleIOGenericIO/LLN0$AnalogValues2': b8:27:eb:25:6e:58
+  '$simpleIOGenericIO/LLN0$AnalogValues3': b8:27:eb:a6:d6:37
+  '$simpleIOGenericIO/LLN0$AnalogValues4': b8:27:eb:a8:4e:9b
+  '$simpleIOGenericIO/LLN0$AnalogValues5': b8:27:eb:22:49:61
+  '$simpleIOGenericIO/LLN0$AnalogValues6': dc:a6:32:cc:44:be
+  '$simpleIOGenericIO/LLN0$AnalogValues8': b8:27:eb:12:23:64
+  '$simpleIOGenericIO/LLN0$AnalogValues9': b8:27:eb:9a:66:cb
+  '$simpleIOGenericIO/LLN0$AnalogValues10': b8:27:eb:90:22:3b
+  '$simpleIOGenericIO/LLN0$AnalogValues11': b8:27:eb:61:6c:db
+  '$simpleIOGenericIO/LLN0$AnalogValues12': dc:a6:32:d8:7a:b6
+  '$simpleIOGenericIO/LLN0$AnalogValues13': b8:27:eb:13:da:b1
+  '$simpleIOGenericIO/LLN0$AnalogValues14': b8:27:eb:00:55:b5
+
+# Registered SV publisher MAC(s). SV is published by a single VM, so any SV
+# frame whose src MAC is NOT in this list is an injection. This is SEPARATE from
+# svid_to_mac / bus_to_mac (which hold the GOOSE IED MACs) — those are NOT the
+# SV publisher and must not be used to validate SV.
+sv_publisher_macs:
+  - '08:00:27:ec:20:12'
+
+# Bus -> MAC mapping (IED7 / bus7 excluded per project)
+bus_to_mac:
+  bus1: b8:27:eb:c2:49:ab
+  bus2: b8:27:eb:25:6e:58
+  bus3: b8:27:eb:a6:d6:37
+  bus4: b8:27:eb:a8:4e:9b
+  bus5: b8:27:eb:22:49:61
+  bus6: dc:a6:32:cc:44:be
+  bus7: b8:27:eb:39:8f:08
+  # bus7 intentionally excluded from active detection rules
+  bus8: b8:27:eb:12:23:64
+  bus9: b8:27:eb:9a:66:cb
+  bus10: b8:27:eb:90:22:3b
+  bus11: b8:27:eb:61:6c:db
+  bus12: dc:a6:32:d8:7a:b6
+  bus13: b8:27:eb:13:da:b1
+  bus14: b8:27:eb:00:55:b5
+
+# MAC -> IP mapping (for spoofing checks)
+mac_to_ip:
+  b8:27:eb:c2:49:ab: 192.168.0.8
+  b8:27:eb:25:6e:58: 192.168.0.9
+  b8:27:eb:a6:d6:37: 192.168.0.10
+  b8:27:eb:a8:4e:9b: 192.168.0.11
+  b8:27:eb:22:49:61: 192.168.0.12
+  dc:a6:32:cc:44:be: 192.168.0.13
+  b8:27:eb:39:8f:08: 192.168.0.14
+  b8:27:eb:12:23:64: 192.168.0.15
+  b8:27:eb:9a:66:cb: 192.168.0.16
+  b8:27:eb:90:22:3b: 192.168.0.17
+  b8:27:eb:61:6c:db: 192.168.0.18
+  dc:a6:32:d8:7a:b6: 192.168.0.19
+  b8:27:eb:13:da:b1: 192.168.0.20
+  b8:27:eb:00:55:b5: 192.168.0.21
+
+# expected intervals in seconds
+normal_goose_interval: 0.52
+abnormal_goose_interval_factor: 3
+normal_sv_interval: 0.001
+
+# thresholds
+stnum_jump_threshold: 10000
+smpcnt_jump_threshold: 100000
+
+# bus-level SV thresholds for each IED/bus
+bus_thresholds:
+  bus1:
+    v_overvoltage: 300000
+    v_undervoltage: 200
+    c_overvoltage: 6000
+    c_undervoltage: 0.5
+  bus2:
+    v_overvoltage: 400000
+    v_undervoltage: 200
+    c_overvoltage: 6000
+    c_undervoltage: 0.5
+  bus3:
+    v_overvoltage: 400000
+    v_undervoltage: 200
+    c_overvoltage: 6000
+    c_undervoltage: 0.5
+  bus4:
+    v_overvoltage: 30000
+    v_undervoltage: 200
+    c_overvoltage: 6000
+    c_undervoltage: 0.5
+  bus5:
+    v_overvoltage: 30000
+    v_undervoltage: 200
+    c_overvoltage: 6000
+    c_undervoltage: 0.5
+  bus6:
+    v_overvoltage: 30000
+    v_undervoltage: 200
+    c_overvoltage: 6000
+    c_undervoltage: 0.5
+  bus8:
+    v_overvoltage: 30000
+    v_undervoltage: 200
+    c_overvoltage: 6000
+    c_undervoltage: 0.5
+  bus9:
+    v_overvoltage: 30000
+    v_undervoltage: 200
+    c_overvoltage: 6000
+    c_undervoltage: 0.5
+  bus10:
+    v_overvoltage: 30000
+    v_undervoltage: 200
+    c_overvoltage: 6000
+    c_undervoltage: 0.5
+  bus11:
+    v_overvoltage: 135000
+    v_undervoltage: 0.5
+    c_overvoltage: 4000
+    c_undervoltage: 0.5
+  bus12:
+    v_overvoltage: 135000
+    v_undervoltage: 0.5
+    c_overvoltage: 4000
+    c_undervoltage: 0.5
+  bus13:
+    v_overvoltage: 135000
+    v_undervoltage: 0.5
+    c_overvoltage: 4000
+    c_undervoltage: 0.5
+  bus14:
+    v_overvoltage: 135000
+    v_undervoltage: 0.5
+    c_overvoltage: 4000
+    c_undervoltage: 0.5

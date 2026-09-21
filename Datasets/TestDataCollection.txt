@@ -1,0 +1,79 @@
+Test attacks
+
+
+1. Goose + SV (Correlation Mismatch) -> Use Pi1 MAC
+
+  gooseAttack values:
+    APPID    : 1000
+    dst MAC  : [press Enter]
+    VLAN ID  : 0
+    VLAN prio: 0
+    goCBRef  : [press Enter]
+    datSet   : [press Enter]
+    confRev  : 1
+    stNum    : 5    (baseline 2 + delta 3)
+    sqNum    : 1
+    ttl      : 500
+    interval : 200
+    packets  : 600
+    bool entries: 1
+    boolean  : 0
+
+  svAttack: run loop in Terminal 2
+  Duration: ~150 seconds
+
+2. Trip Spoof (Sean to handle)
+
+3. StNum high attack (delta400) -> Use ASUS MAC
+
+  gooseAttack values:
+    APPID    : 1000
+    dst MAC  : [press Enter]
+    VLAN ID  : 0
+    VLAN prio: 0
+    goCBRef  : [press Enter]
+    datSet   : [press Enter]
+    confRev  : 1
+    stNum    : 402
+    sqNum    : 1
+    ttl      : 500
+    interval : 200
+    packets  : 900
+    bool entries: 1
+    boolean  : 0
+
+
+4. StNum low attack -> Use ASUS MAC
+
+  gooseAttack values:
+    APPID    : 1000
+    dst MAC  : [press Enter]
+    VLAN ID  : 0
+    VLAN prio: 0
+    goCBRef  : [press Enter]
+    datSet   : [press Enter]
+    confRev  : 1
+    stNum    : 1
+    sqNum    : 1
+    ttl      : 500
+    interval : 200
+    packets  : 900
+    bool entries: 1
+    boolean  : 0
+
+5. Legit Fault (just use fault2.txt)
+
+6. SV Spoof (Sean to handle)
+
+
+7. Pure SV Attack (just undervoltage) -> Use VM MAC
+
+
+  smpCnt=1; while true; do
+      printf "1\n1\n100\n100\n100\n6000\n6000\n6000\n${smpCnt}\n500\n10\n" | sudo ./svAttack eth0
+      smpCnt=$((smpCnt + 500))
+  done
+
+
+
+8.  Trip Spoof (Sean to handle)
